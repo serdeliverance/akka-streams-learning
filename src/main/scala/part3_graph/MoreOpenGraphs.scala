@@ -8,18 +8,18 @@ import akka.stream.scaladsl.{Broadcast, Flow, GraphDSL, RunnableGraph, Sink, Sou
 
 object MoreOpenGraphs extends App {
 
-  implicit val system = ActorSystem("MoreOpenGraph")
+  implicit val system = ActorSystem("MoreOpenGraphsDemo")
   implicit val materializer = ActorMaterializer()
 
   /*
-    Example: Max 3 operator
+    Example: Max3 operator
     - 3 inputs of type int
     - the maximum of the 3
    */
 
   // step 1
-  val max3StatitcGraph = GraphDSL.create() { implicit builder =>
-      import GraphDSL.Implicits._
+  val max3StaticGraph = GraphDSL.create() { implicit builder =>
+    import GraphDSL.Implicits._
 
     // step 2 - define aux SHAPES
     val max1 = builder.add(ZipWith[Int, Int, Int]((a, b) => Math.max(a, b)))
@@ -33,23 +33,24 @@ object MoreOpenGraphs extends App {
   }
 
   val source1 = Source(1 to 10)
-  val source2 = Source((1 to 10).map(_ => 5))
+  val source2 = Source(1 to 10).map(_ => 5)
   val source3 = Source((1 to 10).reverse)
 
-  val maxSink = Sink.foreach[Int](x => println(s"Max is $x"))
+  val maxSink = Sink.foreach[Int](x => println(s"Max is: $x"))
 
   // step 1
   val max3RunnableGraph = RunnableGraph.fromGraph(
     GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
 
-      // step 2
-      val max3Shape = builder.add(max3StatitcGraph)
+      // step 2 - declare SHAPES
+      val max3Shape = builder.add(max3StaticGraph)
 
-      // step 3
+      // step 3 - tie
       source1 ~> max3Shape.in(0)
       source2 ~> max3Shape.in(1)
       source3 ~> max3Shape.in(2)
+
       max3Shape.out ~> maxSink
 
       // step 4
@@ -57,9 +58,10 @@ object MoreOpenGraphs extends App {
     }
   )
 
-  max3RunnableGraph.run()
+  //  max3RunnableGraph.run()
 
   // same for UniformFanOutShape
+  // Uniform means that are the components received/emmited have the same type
 
   /*
     Non-uniform fan out shape
@@ -67,22 +69,23 @@ object MoreOpenGraphs extends App {
     Processing bank transactions
     Txn suspicious if amount > 10000
 
-    Streams component for txns
-    - output1: let the transaction go through
-    - output2: suspicious txn ids
+    Stream components for txns
+    - output 1: let the transactions go through
+    - output 2: suspicious txn ids
    */
 
-  case class Transaction(id: String, source: String, recipient: String, amount: Int, date: Date)
+  case class Transaction(id: String, source: String, recipient: String, amount: Int, data: Date)
 
   val transactionSource = Source(List(
-    Transaction("6546142", "Paul", "Jim", 100, new Date()),
-    Transaction("342345115", "Daniel", "Jim", 100000, new Date()),
-    Transaction("21312455", "Jim", "Alice", 7000, new Date())
+    Transaction("65423422", "Paul", "Jim", 100, new Date),
+    Transaction("34132155", "Daniel", "Jim", 100000, new Date),
+    Transaction("12351234", "Jim", "Alice", 7000, new Date)
   ))
 
   val bankProcessor = Sink.foreach[Transaction](println)
   val suspiciousAnalysisService = Sink.foreach[String](txnId => println(s"Suspicious transaction ID: $txnId"))
 
+  // step 1
   val suspiciousTxnStaticGraph = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
@@ -98,7 +101,6 @@ object MoreOpenGraphs extends App {
     new FanOutShape2(broadcast.in, broadcast.out(1), txnIdExtractor.out)
   }
 
-  // step 1
   val suspiciousTxnRunnableGraph = RunnableGraph.fromGraph(
     GraphDSL.create() { implicit builder =>
       import GraphDSL.Implicits._
