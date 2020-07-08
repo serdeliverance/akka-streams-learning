@@ -3,7 +3,6 @@ package part2_primer
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import playground.MaterializingStreamsReview.system
 
 import scala.util.{Failure, Success}
 
@@ -11,7 +10,6 @@ object MaterializingStreams extends App {
 
   implicit val system = ActorSystem("MaterializingStreams")
   implicit val materializer = ActorMaterializer()
-  import system.dispatcher
 
   val simpleGraph = Source(1 to 10).to(Sink.foreach(println))
   // val materializedValue = simpleGraph.run()
